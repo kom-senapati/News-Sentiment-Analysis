@@ -1,8 +1,8 @@
-from flask import render_template, request, redirect, flash, url_for
+from flask import render_template, request, redirect, flash, url_for, jsonify
 from flask_login import login_user, logout_user, current_user, login_required
 from models import User
 from sqlalchemy.exc import IntegrityError
-
+from ai import analyze_sentiment
 
 def register_routes(app, db, bcrypt):
     @app.route("/")
@@ -17,7 +17,7 @@ def register_routes(app, db, bcrypt):
             user = User.query.filter_by(username=username).first()
             if user and bcrypt.check_password_hash(user.password, password):
                 login_user(user)
-                return redirect(url_for("protected"))
+                return redirect(url_for("analyse"))
             flash("Invalid username or password")
         return render_template("login.html")
 
@@ -47,7 +47,15 @@ def register_routes(app, db, bcrypt):
         logout_user()
         return redirect(url_for("index"))
 
-    @app.route("/protected")
+    @app.route('/analyse', methods=['GET', 'POST'])
     @login_required
-    def protected():
-        return render_template("protected.html")
+    def analyse():
+        if request.method == 'GET':
+            return render_template('analyse.html')
+        
+        if request.method == 'POST':
+            user_input = request.form.get('text')
+            if user_input:
+                sentiment = analyze_sentiment(user_input)  
+                return jsonify({'sentiment': sentiment})  
+            return jsonify({'sentiment': 'No input provided'})
